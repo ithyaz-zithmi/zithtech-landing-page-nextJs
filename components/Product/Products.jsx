@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import styles from './Products.module.css';
 
 import {
@@ -10,20 +11,25 @@ import {
   RadiusBottomleftOutlined,
 } from '@ant-design/icons';
 
-import img1 from '@/assets/productimg1.jpeg';
-import img2 from '@/assets/productimg2.jpeg';
-import img3 from '@/assets/productimg3.jpeg';
-import img4 from '@/assets/productimg4.jpeg';
+import img1 from '@/assets/productimgwhite1.png';
+import img2 from '@/assets/productimgwhite2.png';
+import img3 from '@/assets/productimgwhite3.png';
+import img4 from '@/assets/productimgwhite4.png';
+
+import img1Dark from '@/assets/productimg1.png';
+import img2Dark from '@/assets/productimg2.png';
+import img3Dark from '@/assets/productimg3.png';
+import img4Dark from '@/assets/productimg1.png';
 
 const Products = () => {
   const [activeTab, setActiveTab] = useState(0);
   const intervalRef = useRef(null);
 
   const productData = [
-    { id: 0, img: img1, color: '#A855F7' },
-    { id: 1, img: img2, color: '#22C55E' },
-    { id: 2, img: img3, color: '#F97316' },
-    { id: 3, img: img4, color: '#08a6ef' },
+    { id: 0, img: img1, imgDark: img1Dark, color: '#A855F7' },
+    { id: 1, img: img2, imgDark: img2Dark, color: '#22C55E' },
+    { id: 2, img: img3, imgDark: img3Dark, color: '#F97316' },
+    { id: 3, img: img4, imgDark: img4Dark, color: '#08a6ef' },
   ];
 
   const startInterval = useCallback(() => {
@@ -67,7 +73,13 @@ const Products = () => {
             All-in-one business management solution with project management, HRMS, Client
             management, and finance modules.
           </p>
-          <button className={styles.exploreButton}>Explore now</button>
+          <Link 
+            href="https://zithspace-landing-page.vercel.app"
+            target="_blank"
+            className={styles.exploreButton}
+          >
+            Explore now
+          </Link>
         </div>
 
         {/* RIGHT */}
@@ -132,11 +144,18 @@ const Products = () => {
 
           {/* Dashboard Image */}
           <div className={styles.dashboardContainer}>
-            <Image
-              src={productData[activeTab].img}
-              alt="Dashboard Preview"
-              className={styles.dashboardScreenshot}
-            />
+            <div className={styles.themeImageContainer}>
+              <Image
+                src={productData[activeTab].img}
+                alt="Dashboard Preview Light"
+                className={`${styles.themeImage} ${styles.light}`}
+              />
+              <Image
+                src={productData[activeTab].imgDark}
+                alt="Dashboard Preview Dark"
+                className={`${styles.themeImage} ${styles.dark}`}
+              />
+            </div>
           </div>
         </div>
       </div>

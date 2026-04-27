@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import styles from './Hero.module.css';
 import send from '@/assets/send.png';
 import sendb from '@/assets/sended.png';
@@ -29,7 +30,13 @@ const Hero = () => {
           <div className={styles.flagText}>
             <span>🚀</span>
             <span>our flagship SaaS product is live</span>
-            <span className={styles.flagBrand}>ZithSpace</span>
+            <Link 
+              href="https://zithspace-landing-page.vercel.app"
+              target="_blank"
+              className={styles.flagBrand}
+            >
+              ZithSpace
+            </Link>
           </div>
 
           {/* Title */}
