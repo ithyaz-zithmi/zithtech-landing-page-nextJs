@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Icon } from '@iconify/react';
 import styles from './ContactForm.module.css';
 
@@ -15,19 +15,136 @@ const ContactForm = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+  const autoSaveTimeoutRef = useRef(null);
+  const isAutoSavingRef = useRef(false);
+  const formDataRef = useRef(formData);
+
+  // Sync formDataRef with current formData state
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  // Generate or retrieve session ID on component mount
+  useEffect(() => {
+    const existingSessionId = sessionStorage.getItem('contactFormSessionId');
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+      // Load any previously saved data
+      loadAutoSavedData(existingSessionId);
+    } else {
+      const newSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      setSessionId(newSessionId);
+      sessionStorage.setItem('contactFormSessionId', newSessionId);
+    }
+  }, []);
+
+  // Load auto-saved data
+  const loadAutoSavedData = async (sessionId) => {
+    try {
+      const response = await fetch(`/api/contact/autosave?sessionId=${sessionId}`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        setFormData({
+          companyName: data.data.company_name || '',
+          phoneNumber: data.data.phone_number || '',
+          companyEmail: data.data.company_email || '',
+          industry: data.data.industry || '',
+          subject: data.data.subject || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading auto-saved data:', error);
+    }
+  };
+
+  // Auto-save function
+  const autoSave = async () => {
+    const timestamp = Date.now();
+    console.log(`Auto-save called at ${timestamp}`);
+    
+    if (!sessionId) return;
+
+    // Get current form data from ref to avoid stale closure issues
+    const currentFormData = formDataRef.current;
+    
+    // Only auto-save if email or phone is provided
+    if (!currentFormData.companyEmail && !currentFormData.phoneNumber) return;
+
+    // Prevent multiple concurrent auto-saves
+    if (isAutoSavingRef.current) {
+      console.log(`Auto-save already in progress, skipping at ${timestamp}`);
+      return;
+    }
+
+    isAutoSavingRef.current = true;
+
+    console.log(`Auto-saving data (from ref) at ${timestamp}:`, currentFormData);
+    console.log('Phone number in auto-save:', currentFormData.phoneNumber, 'length:', currentFormData.phoneNumber?.length);
+
+    try {
+      const response = await fetch('/api/contact/autosave', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...currentFormData,
+          sessionId: sessionId,
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`Form data auto-saved successfully at ${timestamp}`);
+      } else {
+        const errorData = await response.json();
+        console.error(`Auto-save error at ${timestamp}:`, errorData);
+      }
+    } catch (error) {
+      console.error(`Auto-save failed at ${timestamp}:`, error);
+    } finally {
+      isAutoSavingRef.current = false;
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Debug logging for phone number input
+    if (name === 'phoneNumber') {
+      console.log('Phone input change - name:', name, 'value:', value, 'length:', value.length);
+      console.log('Event target value:', e.target.value);
+    }
+    
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: value,
+      };
+      
+      // Debug logging for phone number state update
+      if (name === 'phoneNumber') {
+        console.log('New form data after update:', newData);
+      }
+      
+      return newData;
+    });
+    
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
         [name]: '',
       }));
     }
+
+    // Clear existing timeout and set new one for auto-save
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
   };
 
   const validateForm = () => {
@@ -60,6 +177,12 @@ const ContactForm = () => {
       return;
     }
 
+    // Clear any pending auto-save to prevent duplicate submissions
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -68,7 +191,10 @@ const ContactForm = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          sessionId: sessionId,
+        }),
       });
 
       const data = await response.json();
@@ -86,6 +212,13 @@ const ContactForm = () => {
         industry: '',
         subject: '',
       });
+
+      // Clear session storage after successful submission
+      sessionStorage.removeItem('contactFormSessionId');
+      
+      // Generate new session ID for next use
+      const newSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      setSessionId(newSessionId);
 
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch (error) {
@@ -169,14 +302,14 @@ const ContactForm = () => {
           <form className={styles.gridForm} onSubmit={handleSubmit}>
             <div className={styles.inputBox}>
               <label>
-                Company name <span className={styles.required}>*</span>
+                 Name <span className={styles.required}>*</span>
               </label>
               <input
                 type="text"
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleChange}
-                placeholder="Enter your Company name"
+                placeholder="Enter your Name"
                 className={errors.companyName ? styles.inputError : ''}
               />
               {errors.companyName && <span className={styles.errorText}>{errors.companyName}</span>}
@@ -197,14 +330,14 @@ const ContactForm = () => {
             </div>
             <div className={styles.inputBox}>
               <label>
-                Company Email <span className={styles.required}>*</span>
+                 Email <span className={styles.required}>*</span>
               </label>
               <input
                 type="email"
                 name="companyEmail"
                 value={formData.companyEmail}
                 onChange={handleChange}
-                placeholder="Enter your Company Email"
+                placeholder="Enter your Email"
                 className={errors.companyEmail ? styles.inputError : ''}
               />
               {errors.companyEmail && (
